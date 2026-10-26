@@ -28,10 +28,11 @@ read -r -p "ยืนยันล้างระดับ $LEVEL ? พิมพ�
 if command -v docker >/dev/null 2>&1; then
   echo ">> ลบ container, volume, image"
   # ลบเฉพาะของที่สคริปต์ติดตั้งสร้าง ไม่แตะ container/image อื่นในเครื่อง
-  docker rm -f emqx mysql nodered 2>/dev/null
-  docker volume rm emqx_data emqx_log mysql_data nodered_data 2>/dev/null
-  docker rmi -f emqx/emqx mysql:8 nodered/node-red 2>/dev/null
-  docker rmi -f $(docker images -q 'emqx/emqx' 'nodered/node-red' 'mysql') 2>/dev/null
+  docker rm -f emqx mariadb phpmyadmin mysql nodered 2>/dev/null
+  docker volume rm emqx_data emqx_log mariadb_data mysql_data nodered_data 2>/dev/null
+  docker network rm iot-net 2>/dev/null
+  docker rmi -f emqx/emqx mariadb phpmyadmin mysql:8 nodered/node-red 2>/dev/null
+  docker rmi -f $(docker images -q 'emqx/emqx' 'nodered/node-red' 'mysql' 'mariadb' 'phpmyadmin') 2>/dev/null
 fi
 
 if [ "$LEVEL" = "2" ]; then
