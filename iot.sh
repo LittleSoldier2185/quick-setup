@@ -391,6 +391,7 @@ cmd_proxy() {
 #  bundle  (รันบนเซิร์ฟเวอร์หลักที่มีเน็ต: โหลดไฟล์ทั้งหมดมาเก็บ แล้วแชร์ผ่าน HTTP)
 # =====================================================================
 cmd_bundle() {
+  SELF=$(readlink -f "${BASH_SOURCE[0]}")   # path จริงของสคริปต์ (ก่อน cd ไปที่อื่น)
   BUNDLE=/srv/iot-bundle
   BPORT=8000
   mkdir -p "$BUNDLE/debs" "$BUNDLE/images"
@@ -431,7 +432,7 @@ cmd_bundle() {
     docker save "$img" -o "$name.tar.new" && mv "$name.tar.new" "$name.tar"
   done
 
-  cp -f "${BASH_SOURCE[0]}" "$BUNDLE/iot.sh"
+  cp -f "$SELF" "$BUNDLE/iot.sh" || { echo "!! ก๊อปปี้ iot.sh เข้า bundle ไม่สำเร็จ"; exit 1; }
 
   echo "===== เปิดแชร์ผ่าน HTTP พอร์ต $BPORT ====="
   cat > /etc/systemd/system/iot-bundle.service <<EOF_SVC
@@ -460,7 +461,7 @@ EOF_SVC
   echo "================================================"
   echo "Bundle พร้อมแล้วที่ http://$IP:$BPORT"
   echo "บนอีกเครื่อง (ไม่ต้องมีเน็ต):"
-  echo "  curl -O http://$IP:$BPORT/iot.sh"
+  echo "  curl -fO http://$IP:$BPORT/iot.sh"
   echo "  sudo bash iot.sh install --from http://$IP:$BPORT"
   echo "================================================"
 }

@@ -65,7 +65,7 @@ sudo bash iot.sh bundle            # files go to /srv/iot-bundle, served by the 
 On the other server (needs only a network path to the main server):
 
 ```bash
-curl -O http://192.168.10.2:8000/iot.sh
+curl -fO http://192.168.10.2:8000/iot.sh
 sudo bash iot.sh install --from http://192.168.10.2:8000              # menu
 sudo bash iot.sh install --from http://192.168.10.2:8000 docker emqx  # or give names
 ```
