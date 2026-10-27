@@ -3,22 +3,28 @@
 Scripts to set up an IoT stack on Ubuntu: Docker, Node.js 22, EMQX (MQTT), MySQL + phpMyAdmin, and Node-RED.
 All scripts must run as root (`sudo`).
 
-## Scripts
+## Usage
 
-| Script | Run on | Purpose |
+One script, `iot.sh`, with sub-commands:
+
+| Command | Run on | Purpose |
 |---|---|---|
-| `setup-online.sh` | machine with internet | Install the stack |
-| `server-proxy.sh` | main server with internet | Start a proxy (tinyproxy) for machines without internet |
-| `dev-setup.sh` | machine without internet | Install the stack through the proxy of the main server |
-| `status.sh` | any installed machine | Check status from the terminal |
-| `reset.sh` | any installed machine | Remove what was installed |
+| `install` | machine with internet | Install the stack |
+| `install --proxy <IP>` | machine without internet | Install through the proxy of the main server |
+| `proxy` | main server with internet | Start a proxy (tinyproxy) for machines without internet |
+| `bundle` | main server with internet | Download everything once and share it over HTTP for other machines |
+| `install --from <URL>` | machine without internet | Install from the main server's bundle (no internet at all) |
+| `status` | any installed machine | Check status from the terminal |
+| `reset` | any installed machine | Remove what was installed |
+
+Run `sudo bash iot.sh` with no arguments for a menu.
 
 ## Install (with internet)
 
 ```bash
-sudo bash setup-online.sh                 # menu, type numbers e.g. 1 3 5
-sudo bash setup-online.sh docker node     # or give names
-sudo bash setup-online.sh all             # everything
+sudo bash iot.sh install                # menu, type numbers e.g. 1 3 5
+sudo bash iot.sh install docker node     # or give names
+sudo bash iot.sh install all             # everything
 ```
 
 Names: `docker` `node` `emqx` `mysql` `nodered` `all`.
@@ -33,23 +39,44 @@ If an old MySQL / phpMyAdmin install is found, the script asks:
 On the main server (has internet):
 
 ```bash
-sudo bash server-proxy.sh 192.168.20.0/24     # subnet(s) of the dev machines
+sudo bash iot.sh proxy 192.168.20.0/24     # subnet(s) of the dev machines
 ```
 
 On the dev machine:
 
 ```bash
-sudo bash dev-setup.sh 192.168.10.2                 # IP of the main server, then menu
-sudo bash dev-setup.sh 192.168.10.2 docker node     # or give names
+sudo bash iot.sh install --proxy 192.168.10.2                 # IP of the main server, then menu
+sudo bash iot.sh install --proxy 192.168.10.2 docker node     # or give names
 ```
 
 The proxy listens on port 8888 and only allows ports 80 and 443.
+
+## Install (no internet, from a bundle)
+
+Alternative to the proxy: the main server downloads everything once (apt packages for Docker and Node.js,
+Docker images for EMQX, MySQL, phpMyAdmin and Node-RED with `node-red-node-mysql` built in) and serves it on port 8000.
+
+On the main server (has internet):
+
+```bash
+sudo bash iot.sh bundle            # files go to /srv/iot-bundle, served by the iot-bundle service
+```
+
+On the other server (needs only a network path to the main server):
+
+```bash
+curl -O http://192.168.10.2:8000/iot.sh
+sudo bash iot.sh install --from http://192.168.10.2:8000              # menu
+sudo bash iot.sh install --from http://192.168.10.2:8000 docker emqx  # or give names
+```
+
+Run `bundle` again to refresh the files. The bundle is plain HTTP without authentication, so keep it on a trusted network.
 
 ## Services
 
 | Service | URL / port | Login |
 |---|---|---|
-| Node-RED | `http://<IP>:1880` | `admin` / `1234` (`setup-online.sh` only) |
+| Node-RED | `http://<IP>:1880` | `admin` / `1234` (`install` without `--proxy`) |
 | EMQX dashboard | `http://<IP>:18083` | `admin` / `public` |
 | MQTT | `<IP>:1883` | no auth by default |
 | MySQL | `<IP>:3306` | `root` / `1234`, database `iotdb` |
@@ -61,8 +88,8 @@ so open ports are reachable from the network even if `ufw` blocks them.
 ## Check status
 
 ```bash
-sudo bash status.sh                # check once
-sudo watch -n 5 bash status.sh     # refresh every 5 seconds
+sudo bash iot.sh status                # check once
+sudo watch -n 5 bash iot.sh status     # refresh every 5 seconds
 ```
 
 Shows containers (state, restarts), listening ports, service checks (MySQL, Node-RED, phpMyAdmin, EMQX clients),
@@ -72,14 +99,14 @@ and CPU / RAM / disk. Exits with code 1 if something is wrong.
 
 ```bash
 git pull
-sudo bash setup-online.sh nodered     # re-run to recreate a service, data in volumes is kept
+sudo bash iot.sh install nodered     # re-run to recreate a service, data in volumes is kept
 ```
 
 ## Remove
 
 ```bash
-sudo bash reset.sh 1    # containers + volumes + images (keeps Docker and Node.js). DATA IS DELETED
-sudo bash reset.sh 2    # also uninstall Docker, Node.js and proxy settings
+sudo bash iot.sh reset 1    # containers + volumes + images (keeps Docker and Node.js). DATA IS DELETED
+sudo bash iot.sh reset 2    # also uninstall Docker, Node.js and proxy settings
 ```
 
 Both ask you to type `yes`. Only the stack's own containers, volumes and images are removed.
