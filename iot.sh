@@ -14,6 +14,7 @@
 # ชื่อที่ใช้กับ install: docker node emqx mysql nodered all
 
 PORT=8888
+REPO_URL="https://github.com/LittleSoldier2185/quick-setup.git"
 BUNDLE_URL_FILE=/etc/iot-bundle.url   # จำ URL ของ bundle ที่ใช้ install --from ไว้ให้ update
 DB_PASS="${DB_PASS:-1234}"
 NODERED_USER="admin"
@@ -390,6 +391,18 @@ cmd_proxy() {
   echo "================================================"
 }
 
+# เก็บสำเนา git repo ไว้ใน bundle (ให้ GitLab ในวงที่ไม่มีเน็ตตั้ง pull mirror มาดึงจากเครื่องนี้ได้)
+mirror_repo() {
+  command -v git >/dev/null 2>&1 || apt-get install -y git || return 1
+  R=/srv/iot-bundle/repo.git
+  if [ -d "$R" ]; then
+    git -C "$R" remote update --prune || return 1
+  else
+    git clone --mirror "$REPO_URL" "$R" || return 1
+  fi
+  git -C "$R" update-server-info
+}
+
 # =====================================================================
 #  bundle  (รันบนเซิร์ฟเวอร์หลักที่มีเน็ต: โหลดไฟล์ทั้งหมดมาเก็บ แล้วแชร์ผ่าน HTTP)
 # =====================================================================
@@ -436,6 +449,7 @@ cmd_bundle() {
   done
 
   cp -f "$SELF" "$BUNDLE/iot.sh" || { echo "!! ก๊อปปี้ iot.sh เข้า bundle ไม่สำเร็จ"; exit 1; }
+  mirror_repo && REPO_OK=1 || echo "!! เก็บ git repo ไม่สำเร็จ (ข้ามได้ ไม่กระทบการติดตั้ง)"
 
   echo "===== เปิดแชร์ผ่าน HTTP พอร์ต $BPORT ====="
   cat > /etc/systemd/system/iot-bundle.service <<EOF_SVC
@@ -466,6 +480,7 @@ EOF_SVC
   echo "บนอีกเครื่อง (ไม่ต้องมีเน็ต):"
   echo "  curl -fO http://$IP:$BPORT/iot.sh"
   echo "  sudo bash iot.sh install --from http://$IP:$BPORT"
+  [ -n "$REPO_OK" ] && echo "GitLab pull mirror URL: http://$IP:$BPORT/repo.git"
   echo "================================================"
 }
 
@@ -504,6 +519,7 @@ cmd_update() {
   mv -f "$TMP" "$SELF"                           # แทนที่ทั้งไฟล์ ไม่แก้ไฟล์ที่กำลังรันอยู่
   # เซิร์ฟเวอร์หลัก: อัปเดตตัวที่แชร์ใน bundle ด้วย
   [ -f /srv/iot-bundle/iot.sh ] && cp -f "$SELF" /srv/iot-bundle/iot.sh && echo "อัปเดต /srv/iot-bundle/iot.sh แล้ว"
+  [ -d /srv/iot-bundle/repo.git ] && mirror_repo && echo "อัปเดต /srv/iot-bundle/repo.git แล้ว"
   echo "อัปเดตเรียบร้อย (ของเดิมเก็บไว้ที่ $SELF.bak)"
   exit 0
 }

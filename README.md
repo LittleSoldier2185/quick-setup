@@ -73,6 +73,15 @@ sudo bash iot.sh install --from http://192.168.10.2:8000 docker emqx  # or give 
 
 Run `bundle` again to refresh the files. To update `iot.sh` on a machine without internet, run `sudo bash iot.sh update` (it reuses the bundle URL from `install --from`; or pass a URL: `iot.sh update http://192.168.10.2:8000`). On the main server, `update` pulls from GitHub and refreshes the shared copy too. The bundle is plain HTTP without authentication, so keep it on a trusted network.
 
+## GitLab pull mirror
+
+`bundle` also keeps a mirror of this repo at `/srv/iot-bundle/repo.git`, served at `http://<main-server>:8000/repo.git`.
+A GitLab without internet can pull from the main server: in the project go to
+Settings → Repository → Mirroring repositories, set the URL above and the direction to **Pull**.
+If GitLab refuses the URL ("requests to the local network are not allowed"), an admin must enable
+Admin → Settings → Network → Outbound requests → *Allow requests to the local network from webhooks and integrations*.
+Run `bundle` again (or `update`) on the main server to refresh the mirror from GitHub.
+
 ## Services
 
 | Service | URL / port | Login |
