@@ -28,8 +28,8 @@ sudo bash iot.sh install docker node     # or give names
 sudo bash iot.sh install all             # everything
 ```
 
-Names: `docker` `node` `emqx` `mysql` `nodered` `all`.
-EMQX, MySQL and Node-RED need Docker, so it is added automatically.
+Names: `docker` `node` `emqx` `mysql` `nodered` `apache` `git` `all`.
+EMQX, MySQL and Node-RED need Docker, so it is added automatically. Apache (`apache2`, port 80) and Git are installed with apt; `reset 2` removes Apache but leaves Git.
 
 If an old MySQL / phpMyAdmin install is found, the script asks:
 1. **skip**: keep the database and its data, install phpMyAdmin only (default)
@@ -88,6 +88,7 @@ Run `bundle` again (or `update`) on the main server to refresh the mirror from G
 |---|---|---|
 | Node-RED | `http://<IP>:1880` | `admin` / `1234` (`install` without `--proxy`) |
 | EMQX dashboard | `http://<IP>:18083` | `admin` / `public` |
+| Apache | `http://<IP>` | default page |
 | MQTT | `<IP>:1883` | no auth by default |
 | MySQL | `<IP>:3306` | `root` / `1234`, database `iotdb` |
 | phpMyAdmin | `http://<IP>:8080` | `root` / `1234` |

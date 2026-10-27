@@ -11,7 +11,7 @@
 #   sudo bash iot.sh update [URL]                      -> อัปเดต iot.sh เอง (ไม่ใส่ URL: bundle เดิม หรือ GitHub)
 #   sudo bash iot.sh status                            -> ดูสถานะ (exit 1 ถ้ามีอะไรผิดปกติ)
 #   sudo bash iot.sh reset [1|2]                       -> ล้างของที่ติดตั้ง
-# ชื่อที่ใช้กับ install: docker node emqx mysql nodered all
+# ชื่อที่ใช้กับ install: docker node emqx mysql nodered apache git all
 
 PORT=8888
 REPO_URL="https://github.com/LittleSoldier2185/quick-setup.git"
@@ -62,7 +62,9 @@ cmd_install() {
     echo "  3) EMQX (MQTT)"
     echo "  4) MySQL + phpMyAdmin"
     echo "  5) Node-RED"
-    echo "  6) ทั้งหมด"
+    echo "  6) Apache"
+    echo "  7) Git"
+    echo "  8) ทั้งหมด"
     read -r -p "เลือก: " CHOICE
     for n in $CHOICE; do
       case "$n" in
@@ -71,15 +73,17 @@ cmd_install() {
         3) SEL="$SEL emqx" ;;
         4) SEL="$SEL mysql" ;;
         5) SEL="$SEL nodered" ;;
-        6) SEL="all" ;;
+        6) SEL="$SEL apache" ;;
+        7) SEL="$SEL git" ;;
+        8) SEL="all" ;;
       esac
     done
   fi
-  case " $SEL " in *" all "*) SEL="docker node emqx mysql nodered" ;; esac
+  case " $SEL " in *" all "*) SEL="docker node emqx mysql nodered apache git" ;; esac
   for w in $SEL; do
     case "$w" in
-      docker|node|emqx|mysql|nodered) ;;
-      *) echo "ไม่รู้จัก: $w (ใช้ได้: docker node emqx mysql nodered all)"; exit 1 ;;
+      docker|node|emqx|mysql|nodered|apache|git) ;;
+      *) echo "ไม่รู้จัก: $w (ใช้ได้: docker node emqx mysql nodered apache git all)"; exit 1 ;;
     esac
   done
   if [ -z "$(echo $SEL)" ]; then
@@ -170,6 +174,19 @@ EOF_DK
       npm config set proxy "$PROXY"
       npm config set https-proxy "$PROXY"
     fi
+  fi
+
+  if want apache; then
+    echo "===== Apache ====="
+    apt-get install -y apache2
+    systemctl enable --now apache2
+    apache2 -v | head -n 1
+  fi
+
+  if want git; then
+    echo "===== Git ====="
+    apt-get install -y git
+    git --version
   fi
 
   # โหมด bundle: โหลด image จากเซิร์ฟเวอร์หลักเข้า Docker (ไม่ต้อง pull)
@@ -296,7 +313,7 @@ EOF_DK
   fi
 
   if command -v ufw >/dev/null 2>&1 && ufw status | grep -q "Status: active"; then
-    for p in 1880 1883 8080 8083 8084 8883 18083 3306; do ufw allow ${p}/tcp; done
+    for p in 80 1880 1883 8080 8083 8084 8883 18083 3306; do ufw allow ${p}/tcp; done
   fi
 
   echo
@@ -325,6 +342,12 @@ EOF_DK
     else
       echo "$DB_NAME : ไม่ได้รัน"
     fi
+  fi
+  if want apache; then
+    systemctl is-active --quiet apache2 && echo "Apache   : http://$IP:80" || echo "Apache   : ไม่ได้รัน"
+  fi
+  if want git; then
+    command -v git >/dev/null 2>&1 && git --version || echo "Git      : ติดตั้งไม่สำเร็จ"
   fi
   exit 0
 }
@@ -426,7 +449,7 @@ cmd_bundle() {
   echo "===== โหลดแพ็กเกจ apt (Docker, Node.js) ====="
   cd "$BUNDLE/debs" || exit 1
   rm -f ./*.deb
-  PKGS="docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin nodejs"
+  PKGS="docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin nodejs apache2 git"
   # รวม dependency ทั้งหมด (รวมที่เครื่องนี้ลงไว้แล้ว) เพื่อให้เครื่องปลายทางเลือกเอาเฉพาะที่ขาด
   DEPS=$(apt-cache depends --recurse --no-recommends --no-suggests --no-conflicts --no-breaks --no-replaces --no-enhances $PKGS \
     | grep '^\w' | sort -u)
@@ -607,6 +630,17 @@ cmd_status() {
       *)     bad "phpMyAdmin HTTP ${code:-000}" ;;
     esac
   fi
+  if command -v apache2 >/dev/null 2>&1; then
+    if systemctl is-active --quiet apache2; then
+      code=$(http http://localhost:80)
+      case "$code" in
+        2*|3*|401|403) ok "Apache HTTP $code" ;;
+        *)             bad "Apache HTTP ${code:-000}" ;;
+      esac
+    else
+      bad "Apache ไม่ได้รัน (systemctl status apache2)"
+    fi
+  fi
   if exists emqx; then
     if docker exec emqx emqx ctl status >/dev/null 2>&1; then
       clients=$(docker exec emqx emqx ctl clients list 2>/dev/null | grep -c '^Client')
@@ -677,6 +711,9 @@ cmd_reset() {
     rm -f /etc/apt/sources.list.d/docker.list /etc/apt/keyrings/docker.asc /etc/apt/keyrings/docker.gpg
     rm -rf /etc/systemd/system/docker.service.d
     systemctl daemon-reload
+
+    echo ">> ถอน Apache"
+    apt-get purge -y apache2 apache2-utils 2>/dev/null
 
     echo ">> ถอน Node.js"
     apt-get purge -y nodejs 2>/dev/null
