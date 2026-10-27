@@ -1,5 +1,5 @@
 #!/bin/bash
-# เครื่องมือเดียวจัดการ IoT stack (Docker, Node.js 22, EMQX, MySQL + phpMyAdmin, Node-RED) บน Ubuntu 22.04
+# เครื่องมือเดียวจัดการ IoT stack (Docker, Node.js LTS, EMQX, MySQL + phpMyAdmin, Node-RED) บน Ubuntu 22.04
 #
 # วิธีใช้:
 #   sudo bash iot.sh                                   -> ขึ้นเมนูหลัก
@@ -14,6 +14,7 @@
 # ชื่อที่ใช้กับ install: docker node emqx mysql nodered apache git all
 
 PORT=8888
+NODE_MAJOR=24   # Node.js LTS ที่จะติดตั้ง (26 = Current, ยังไม่ใช่ LTS)
 REPO_URL="https://github.com/LittleSoldier2185/quick-setup.git"
 BUNDLE_URL_FILE=/etc/iot-bundle.url   # จำ URL ของ bundle ที่ใช้ install --from ไว้ให้ update
 DB_PASS="${DB_PASS:-1234}"
@@ -58,7 +59,7 @@ cmd_install() {
   if [ -z "$SEL" ]; then
     echo "เลือกสิ่งที่จะติดตั้ง (พิมพ์เลขคั่นด้วยเว้นวรรค เช่น 1 3 5)"
     echo "  1) Docker"
-    echo "  2) Node.js 22"
+    echo "  2) Node.js $NODE_MAJOR"
     echo "  3) EMQX (MQTT)"
     echo "  4) MySQL + phpMyAdmin"
     echo "  5) Node-RED"
@@ -165,8 +166,8 @@ EOF_DK
   fi
 
   if want node; then
-    echo "===== Node.js 22 ====="
-    [ -n "$FROM" ] || curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+    echo "===== Node.js $NODE_MAJOR ====="
+    [ -n "$FROM" ] || curl -fsSL https://deb.nodesource.com/setup_${NODE_MAJOR}.x | bash -
     apt-get install -y nodejs
     node -v
     npm -v
@@ -442,9 +443,8 @@ cmd_bundle() {
   fi
   apt-get update -y
   apt-get install -y curl ca-certificates gnupg apt-utils python3
-  if [ ! -f /etc/apt/sources.list.d/nodesource.list ]; then
-    curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
-  fi
+  # ตั้ง repo ใหม่ทุกครั้ง เพื่อไม่ค้างเวอร์ชันเก่าถ้าเคยลง repo ของ Node รุ่นอื่นไว้
+  curl -fsSL https://deb.nodesource.com/setup_${NODE_MAJOR}.x | bash -
 
   echo "===== โหลดแพ็กเกจ apt (Docker, Node.js) ====="
   cd "$BUNDLE/debs" || exit 1

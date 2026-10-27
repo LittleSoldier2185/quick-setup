@@ -1,6 +1,6 @@
 # quick-setup
 
-Scripts to set up an IoT stack on Ubuntu: Docker, Node.js 22, EMQX (MQTT), MySQL + phpMyAdmin, and Node-RED.
+Scripts to set up an IoT stack on Ubuntu: Docker, Node.js LTS (24), EMQX (MQTT), MySQL + phpMyAdmin, and Node-RED.
 All scripts must run as root (`sudo`).
 
 ## Usage
