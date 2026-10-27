@@ -8,11 +8,13 @@
 #   sudo bash iot.sh proxy [วงเครือข่าย...]            -> ตั้ง proxy บนเซิร์ฟเวอร์หลัก (มีเน็ต)
 #   sudo bash iot.sh bundle                            -> โหลดไฟล์มาเก็บ + แชร์ผ่าน HTTP (เซิร์ฟเวอร์หลัก)
 #   sudo bash iot.sh install --from http://IP:8000 ... -> ติดตั้งจาก bundle (ไม่ต้องมีเน็ตเลย)
+#   sudo bash iot.sh update [URL]                      -> อัปเดต iot.sh เอง (ไม่ใส่ URL: bundle เดิม หรือ GitHub)
 #   sudo bash iot.sh status                            -> ดูสถานะ (exit 1 ถ้ามีอะไรผิดปกติ)
 #   sudo bash iot.sh reset [1|2]                       -> ล้างของที่ติดตั้ง
 # ชื่อที่ใช้กับ install: docker node emqx mysql nodered all
 
 PORT=8888
+BUNDLE_URL_FILE=/etc/iot-bundle.url   # จำ URL ของ bundle ที่ใช้ install --from ไว้ให้ update
 DB_PASS="${DB_PASS:-1234}"
 NODERED_USER="admin"
 NODERED_PASS="1234"   # รหัสเข้า Node-RED (ปล่อยว่าง "" = ไม่ตั้งรหัส)
@@ -136,6 +138,7 @@ EOF_DK
     command -v curl >/dev/null 2>&1 || { echo "ต้องมี curl ในเครื่อง"; exit 1; }
     curl -fsS -m 10 -o /dev/null "$FROM/debs/Release" || { echo "!! โหลด $FROM/debs/Release ไม่ได้ เช็กว่า 'iot.sh bundle' รันแล้วและเข้าถึงเครื่องนั้นได้"; exit 1; }
     BL=/etc/apt/sources.list.d/iot-bundle.list
+    echo "$FROM" > "$BUNDLE_URL_FILE"
     echo "deb [trusted=yes] $FROM/debs ./" > $BL
     apt-get update -y -o Dir::Etc::sourcelist=$BL -o Dir::Etc::sourceparts=- -o APT::Get::List-Cleanup=0
   else
@@ -467,6 +470,45 @@ EOF_SVC
 }
 
 # =====================================================================
+#  update  (อัปเดต iot.sh เอง: เครื่องไม่มีเน็ตดึงจาก bundle, เครื่องมีเน็ตดึงจาก GitHub)
+# =====================================================================
+cmd_update() {
+  SELF=$(readlink -f "${BASH_SOURCE[0]}")
+  URL="$1"
+  if [ -z "$URL" ]; then
+    if [ -s "$BUNDLE_URL_FILE" ]; then
+      URL="$(cat "$BUNDLE_URL_FILE")"            # เคย install --from ไว้ -> ใช้ bundle เดิม
+    else
+      URL="https://raw.githubusercontent.com/LittleSoldier2185/quick-setup/main/iot.sh"
+    fi
+  fi
+  case "$URL" in *.sh) ;; *) URL="${URL%/}/iot.sh" ;; esac
+  echo "ดึง $URL ..."
+
+  TMP=$(mktemp)
+  if ! curl -fsSL -m 30 "$URL" -o "$TMP"; then
+    echo "!! โหลดไม่สำเร็จ (เช็กว่าเซิร์ฟเวอร์หลักรัน 'iot.sh bundle' แล้วและเข้าถึงได้)"
+    rm -f "$TMP"; exit 1
+  fi
+  sed -i 's/\r$//' "$TMP"
+  if ! head -n 1 "$TMP" | grep -q '^#!/bin/bash' || ! bash -n "$TMP" 2>/dev/null; then
+    echo "!! ไฟล์ที่ได้ไม่ใช่สคริปต์ที่ใช้ได้ ไม่เปลี่ยนอะไร"
+    rm -f "$TMP"; exit 1
+  fi
+  if cmp -s "$TMP" "$SELF"; then
+    echo "เป็นเวอร์ชันล่าสุดแล้ว"
+    rm -f "$TMP"; exit 0
+  fi
+  cp -f "$SELF" "$SELF.bak"
+  chmod 755 "$TMP"
+  mv -f "$TMP" "$SELF"                           # แทนที่ทั้งไฟล์ ไม่แก้ไฟล์ที่กำลังรันอยู่
+  # เซิร์ฟเวอร์หลัก: อัปเดตตัวที่แชร์ใน bundle ด้วย
+  [ -f /srv/iot-bundle/iot.sh ] && cp -f "$SELF" /srv/iot-bundle/iot.sh && echo "อัปเดต /srv/iot-bundle/iot.sh แล้ว"
+  echo "อัปเดตเรียบร้อย (ของเดิมเก็บไว้ที่ $SELF.bak)"
+  exit 0
+}
+
+# =====================================================================
 #  status
 # =====================================================================
 cmd_status() {
@@ -657,6 +699,7 @@ if [ -z "$CMD" ]; then
   echo "  -- ทั่วไป --"
   echo "  6) status   ดูสถานะ"
   echo "  7) reset    ล้างของที่ติดตั้ง"
+  echo "  8) update   อัปเดต iot.sh เอง"
   read -r -p "เลือก: " M
   case "$M" in
     1) CMD=install ;;
@@ -666,6 +709,7 @@ if [ -z "$CMD" ]; then
     5) CMD=install; set -- install --from ;;
     6) CMD=status ;;
     7) CMD=reset ;;
+    8) CMD=update ;;
     *) echo "ยกเลิก"; exit 1 ;;
   esac
 fi
@@ -675,7 +719,8 @@ case "$CMD" in
   install) cmd_install "$@" ;;
   proxy)   cmd_proxy "$@" ;;
   bundle)  cmd_bundle ;;
+  update)  cmd_update "$@" ;;
   status)  cmd_status ;;
   reset)   cmd_reset "$@" ;;
-  *) echo "ไม่รู้จักคำสั่ง: $CMD (ใช้ได้: install proxy bundle status reset)"; exit 1 ;;
+  *) echo "ไม่รู้จักคำสั่ง: $CMD (ใช้ได้: install proxy bundle update status reset)"; exit 1 ;;
 esac

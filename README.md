@@ -14,6 +14,7 @@ One script, `iot.sh`, with sub-commands:
 | `proxy` | main server with internet | Start a proxy (tinyproxy) for machines without internet |
 | `bundle` | main server with internet | Download everything once and share it over HTTP for other machines |
 | `install --from <URL>` | machine without internet | Install from the main server's bundle (no internet at all) |
+| `update` | any machine | Update `iot.sh` itself (from the bundle if one was used, otherwise from GitHub) |
 | `status` | any installed machine | Check status from the terminal |
 | `reset` | any installed machine | Remove what was installed |
 
@@ -70,7 +71,7 @@ sudo bash iot.sh install --from http://192.168.10.2:8000              # menu
 sudo bash iot.sh install --from http://192.168.10.2:8000 docker emqx  # or give names
 ```
 
-Run `bundle` again to refresh the files. The bundle is plain HTTP without authentication, so keep it on a trusted network.
+Run `bundle` again to refresh the files. To update `iot.sh` on a machine without internet, run `sudo bash iot.sh update` (it reuses the bundle URL from `install --from`; or pass a URL: `iot.sh update http://192.168.10.2:8000`). On the main server, `update` pulls from GitHub and refreshes the shared copy too. The bundle is plain HTTP without authentication, so keep it on a trusted network.
 
 ## Services
 
