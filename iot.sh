@@ -647,22 +647,25 @@ cmd_reset() {
 CMD="$1"
 if [ -z "$CMD" ]; then
   echo "เลือกงาน"
+  echo "  -- เครื่องที่มีเน็ต / เซิร์ฟเวอร์หลัก --"
   echo "  1) install  ติดตั้ง stack (มีเน็ต)"
-  echo "  2) install  ติดตั้ง stack ผ่าน proxy (เครื่องไม่มีเน็ต)"
-  echo "  3) proxy    ตั้ง proxy บนเซิร์ฟเวอร์หลัก"
-  echo "  6) bundle   โหลดไฟล์ทั้งหมดมาเก็บและแชร์ให้เครื่องอื่น (เซิร์ฟเวอร์หลัก)"
-  echo "  7) install  ติดตั้งจาก bundle ของเซิร์ฟเวอร์หลัก (เครื่องไม่มีเน็ต)"
-  echo "  4) status   ดูสถานะ"
-  echo "  5) reset    ล้างของที่ติดตั้ง"
+  echo "  2) proxy    ตั้ง proxy ให้เครื่องอื่นออกเน็ต"
+  echo "  3) bundle   โหลดไฟล์ทั้งหมดมาเก็บและแชร์ให้เครื่องอื่น"
+  echo "  -- เครื่องที่ไม่มีเน็ต --"
+  echo "  4) install  ติดตั้งผ่าน proxy ของเซิร์ฟเวอร์หลัก"
+  echo "  5) install  ติดตั้งจาก bundle ของเซิร์ฟเวอร์หลัก"
+  echo "  -- ทั่วไป --"
+  echo "  6) status   ดูสถานะ"
+  echo "  7) reset    ล้างของที่ติดตั้ง"
   read -r -p "เลือก: " M
   case "$M" in
     1) CMD=install ;;
-    2) CMD=install; set -- install --proxy ;;
-    3) CMD=proxy ;;
-    4) CMD=status ;;
-    5) CMD=reset ;;
-    6) CMD=bundle ;;
-    7) CMD=install; set -- install --from ;;
+    2) CMD=proxy ;;
+    3) CMD=bundle ;;
+    4) CMD=install; set -- install --proxy ;;
+    5) CMD=install; set -- install --from ;;
+    6) CMD=status ;;
+    7) CMD=reset ;;
     *) echo "ยกเลิก"; exit 1 ;;
   esac
 fi
